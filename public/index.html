@@ -1,0 +1,157 @@
+<html>
+    <body>
+        <div class="contentBox">
+            <div>
+                last image:
+            </div>
+            <div class="previewBox">
+                <img class="preview" id="preview"/><br/>
+            </div>
+            <div class="rotate">
+                <a onclick="rotateImageById('preview')">rotate</a>
+            </div>
+            <div class="scanBox">
+                <div>
+                    <u>scan:</u>
+                </div>
+                <div>
+                    <table>
+                        <tr>
+                            <td>num exposures:</td>
+                            <td><input type="text" id="num" value="355"></td>
+                        </tr>
+                        <tr>
+                            <td>steps per exposure:</td>
+                            <td><input type="text" id="x" value="18"></td>
+                        </tr>
+                        <tr>
+                            <td>exposure length:</td>
+                            <td><input type="text" id="exposure" value="0.7"> seconds</td>
+                        </tr>
+                        <tr>
+                            <td>interval:</td>
+                            <td><input type="text" id="interval" value="30"> seconds</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="button" id="start" value="start" onclick="start()">
+                                <input type="button" id="stop" value="stop" onclick="stop()" hidden>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </body>
+    <head>
+        <title>ct</title>
+        <style>
+            body {
+                background-color: #000;
+                color: #fff;
+            }
+
+            .rotate {
+                display: block;
+            }
+
+            .preview {
+                width: 400px;
+            }
+
+            .preview img {
+                width: 400px;
+                height: 286px;
+            }
+
+            .previewBox {
+                display: block;
+                margin-top: 100px;
+            }
+
+            .contentBox {
+                display: block;
+                width: 400px;
+                margin: auto;
+            }
+
+            .scanBox {
+                display: block;
+                margin-top: 50px;
+            }
+
+        </style>
+        <!-- include jquery -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script>
+            var state = 0;
+            var last = null;
+            var scan = null;
+            var deg = 0;
+
+            getLastImage();
+
+            window.setInterval(function(){
+                getLastImage();
+            }, 4000);
+
+            function rotateImageById(id) {
+                deg+=90;
+                const image = document.getElementById(id);
+                if (image) {
+                    image.style.transform = "rotate("+deg+"deg)";
+                }
+            }
+
+            function getLastImage(){
+                $.get("/api/images", function(data) {
+                    var ts = data.images[data.images.length - 1].split(".")[0];
+                    if(ts != last){
+                        last = ts;
+                        document.getElementById("preview").src = "images/"+ts+".png?r="+Date.now();
+                    }
+                });
+            }
+
+            function stepScan(){
+                var x = document.getElementById("x").value;
+                var num = document.getElementById("num").value;
+                var exposure = document.getElementById("exposure").value;
+                var num = document.getElementById("num").value;
+
+                if(parseInt(num) == 0){
+                    stop();
+                    return;
+                }
+                
+                $.get("/api/step?y=1&x="+x+"&s=0.01", function(data) {
+                    $.get("/api/trigger?s="+exposure, function(data) {
+                        document.getElementById("num").value = parseInt(num) - 1;
+                    });
+                });
+            }
+
+            function start(){
+                state = 1;
+                document.getElementById("start").hidden = true;
+                document.getElementById("stop").hidden = false;
+                var num = document.getElementById("num").value;
+
+                stepScan();
+
+                scan = window.setInterval(function(){
+                    stepScan();
+                }, parseInt(document.getElementById("interval").value) * 1000);
+            }
+
+            function stop(){
+                state = 0;
+                document.getElementById("start").hidden = false;
+                document.getElementById("stop").hidden = true;
+                window.clearInterval(scan);
+            }
+
+        </script>
+    </head>
+</html>
